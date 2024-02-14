@@ -18,14 +18,32 @@ from configs import ips
 def arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("--keyword", type=str, required=False, default="wall street bank")
-    parser.add_argument("--use_proxy", type=int, required=False, default=False)
+    parser.add_argument("--use_proxy", type=bool, required=False, default=False)
+    parser.add_argument("--time_range", type=str, required=False, default="all")
+    parser.add_argument("--order", type=str, required=False, default="")
     args = parser.parse_args()
     return args 
 
-def main(key_word, use_proxy):
+def main(key_word, use_proxy, time_range, order):
+    """
+    keyword (str)
+    use_proxy (bool)
+    time_range (str): all, year, month, week, day, hour
+    order (str): relevance, hot, top, new, comments  
+    """
+    
     f = open(f"result/urls.txt", 'w')
-    key_word = "+".join(key_word.split())
-    url = f"https://www.reddit.com/search/?q={key_word}&type=link"
+    if time_range == None:
+        key_word = "+".join(key_word.split())
+        url = f"https://www.reddit.com/search/?q={key_word}&type=link"
+    else:
+        # Specify time range of the posts, for exmale, if time_range == "month",
+        # then only search for the url of past month
+        key_word = "%20".join(key_word.split())
+        url = f"https://www.reddit.com/search/?q={key_word}&type=link&t={time_range}"
+        if order:
+            url = url + f"&sort={order}"
+        
    
     chrome_options = Options()
     chrome_options.page_load_strategy = 'eager'
@@ -36,6 +54,7 @@ def main(key_word, use_proxy):
     driver.get(url)
     
     path = """//a[contains(@data-testid, 'post-title-text')]"""
+    #Scrape 100 urls for now to not have my ip be blocked
     for i in range(100):
         if i % 20 == 0:
             if use_proxy:
@@ -56,4 +75,6 @@ if __name__ == '__main__':
     args = arg_parse()
     key_word = args.keyword
     use_proxy = args.use_proxy
-    main(key_word, use_proxy)
+    time_range = args.time_range
+    order = args.order
+    main(key_word, use_proxy, time_range, order)
