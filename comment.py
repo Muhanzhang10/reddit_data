@@ -25,15 +25,53 @@ def arg_parse():
     args = parser.parse_args()
     return args 
 
+def find_comment(driver, num):
+    result = {"title": [], "content": [], "date": [], "username": [], "layer": []}
+    comment_path = """//shreddit-comment"""
+    comment2_path = """.//div[contains(@slot, 'comment')]//p"""
+    hierarchy = []
+    chunks = driver.find_elements(By.XPATH, comment_path)
+    for chunk in chunks:
+        try:
+            username = chunk.get_attribute("author")
+        except:
+            username = "[deleted]"
+        depth = int(chunk.get_attribute("depth"))
+        date = chunk.find_element(By.XPATH, ".//time").get_attribute("datetime")
+        texts = chunk.find_elements(By.XPATH, comment2_path)
+        texts = [text.text for text in texts]
+        texts = "\n".join(texts)
+        
+        depth += 1
+        if depth > len(hierarchy):
+            hierarchy.append("1")
+        elif depth <= len(hierarchy):
+            hierarchy = hierarchy[:depth]
+            hierarchy[-1] = str(int(hierarchy[-1]) + 1)
+            
+        layer = str(num) + "." + ".".join(hierarchy)
+        result["title"].append("")
+        result["layer"].append(layer)
+        result["username"].append(username)
+        result["date"].append(date)
+        result["content"].append(texts)
+        
+    return result
 
+#Combine two dictionaries
+def combine_result(res1, res2):
+    for key in res1:
+        res1[key] = res1[key] + res2[key]
+    return res1 
+    
 def main(use_proxy):
     f = open("result/urls.txt", 'r')
-    result_df = {"title": [], "content": [], "date": [], "username": []}
+    result_df = {"title": [], "content": [], "date": [], "username": [], "layer": []}
     title_path = """//h1[contains(@slot, 'title')]"""
     content_path = """//div[contains(@class, 'text-neutral-content')]//p"""
     username_path = """//a[contains(@class, "author")]"""
     post_time_path = """//time"""
-
+    num = 0
     
     for url in f:
         chrome_options = Options()
@@ -57,9 +95,14 @@ def main(use_proxy):
         result_df["content"].append(content)
         result_df["date"].append(post_time)
         result_df["username"].append(user_name)
+        result_df["layer"].append(str(num))
+        num += 1
+        comment_result = find_comment(driver, num)
+        result_df = combine_result(result_df, comment_result)
+        
         
     result_df = pd.DataFrame(result_df)
-    result_df.to_csv("info.csv")
+    result_df.to_csv("info.csv", index=False)
     
 if __name__ == '__main__':
     args = arg_parse()
