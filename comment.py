@@ -15,17 +15,32 @@ from selenium.webdriver.chrome.options import Options
 import re, datetime
 import argparse
 
-from configs import ips
-
+import configs
 
 
 def arg_parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--use_proxy", type=int, required=False, default=False)
+    parser.add_argument("--use_proxy", type=bool, required=False, default=False)
     args = parser.parse_args()
     return args 
 
+def click_more_comment_buttons(driver):
+    #class = invisible
+    open_more_comment_buttons_path = """
+    //faceplate-partial[contains(@loading, "action")]//button[not(contains(@class, 'invisible')) and not(contains(@aria-label, 'Loading'))]
+    """
+    for i in range(3):
+        buttons = driver.find_elements(By.XPATH, open_more_comment_buttons_path)
+        for button in buttons:
+            try:
+                button.click()
+            except:
+                continue 
+    return driver
+    
+
 def find_comment(driver, num):
+    driver = click_more_comment_buttons(driver)
     result = {"title": [], "content": [], "date": [], "username": [], "layer": []}
     comment_path = """//shreddit-comment"""
     comment2_path = """.//div[contains(@slot, 'comment')]//p"""
@@ -42,6 +57,7 @@ def find_comment(driver, num):
         texts = [text.text for text in texts]
         texts = "\n".join(texts)
         
+        # Assumes that the comment tree is in DFS order
         depth += 1
         if depth > len(hierarchy):
             hierarchy.append("1")
@@ -74,11 +90,11 @@ def main(use_proxy):
     num = 0
     
     for url in f:
-        chrome_options = Options()
-        chrome_options.page_load_strategy = 'eager'
         if use_proxy:
-            chrome_options.add_argument(f'--proxy-server={random.choice(random.choice(ips))}')
-        driver = webdriver.Chrome(options=chrome_options)
+            driver = webdriver.Chrome(seleniumwire_options = configs.OPTIONS)
+        else:
+            driver = webdriver.Chrome(options=Options())
+    
         driver.get(url)
     
         title = driver.find_element(By.XPATH, title_path).text
@@ -106,5 +122,9 @@ def main(use_proxy):
     
 if __name__ == '__main__':
     args = arg_parse()
-    use_proxy = args.use_proxy
+    use_proxy = bool(args.use_proxy)
+    if use_proxy == "True":
+        use_proxy = True 
+    else:
+        use_proxy = False 
     main(use_proxy)
